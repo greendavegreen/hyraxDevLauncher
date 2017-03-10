@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Script to produce a dev hyrax server for a given user.'
+Parameters:
+  NetworkStackName:
+    Type: String
+    Description: The stack that created our VPC
+    Default: test-net
+  HyraxUserInitials:
+    Description: initials of user we are creating the dev server for.
+    Default: tt
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-z][a-z]*"
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0b33d91d
+Resources:
+  EC2Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        publicSubnets:
+          Fn::ImportValue:
+            !Sub "${NetworkStackName}-PubNets"
+        vpcID:
+          Fn::ImportValue:
+            !Sub "${NetworkStackName}-VPCId"
+        userInitials:
+          !Ref HyraxUserInitials
+      TemplateURL: https://s3.amazonaws.com/hyrax-cf/old_server.yaml
+      TimeoutInMinutes: '5'

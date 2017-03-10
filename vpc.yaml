@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Establishes VPC for account, exports public and private subnets for use by projects'
+
+###############################################################################
+#
+# CIDR settings established here to avoid search/replace if changes made in future
+#
+###############################################################################
+
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: '10.0.0.0/16'
+    PublicSubnetA:
+      CIDR: '10.0.1.0/24'
+    PublicSubnetB:
+      CIDR: '10.0.2.0/24'
+    PublicSubnetC:
+      CIDR: '10.0.3.0/24'
+    PrivateSubnetA:
+      CIDR: '10.0.4.0/24'
+    PrivateSubnetB:
+      CIDR: '10.0.5.0/24'
+    PrivateSubnetC:
+      CIDR: '10.0.6.0/24'
+
+Resources:
+  hyraxVPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !FindInMap [SubnetConfig, VPC, CIDR]
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy:  default
+      Tags:
+        - {Key: Name, Value: hyrax-vpc}
+        - {Key: project, Value: hyrax}
+
+  hyraxIGW:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - {Key: Name, Value: hyrax-IGW}
+        - {Key: project, Value: hyrax}
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref hyraxVPC
+      InternetGatewayId: !Ref hyraxIGW
+
+
+###############################################################################
+#
+# The VPC for hyrax consists of 3 public and 3 private subnets across 3 AZs
+#
+###############################################################################
+
+  pubSubA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref hyraxVPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !FindInMap [SubnetConfig, PublicSubnetA, CIDR]
+      Tags:
+        - {Key: Name, Value: hyrax-public-net-a}
+        - {Key: project, Value: hyrax}
+
+  pubSubB:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref hyraxVPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !FindInMap [SubnetConfig, PublicSubnetB, CIDR]
+      Tags:
+        - {Key: Name, Value: hyrax-public-net-b}
+        - {Key: project, Value: hyrax}
+
+  pubSubC:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref hyraxVPC
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !FindInMap [SubnetConfig, PublicSubnetC, CIDR]
+      Tags:
+        - {Key: Name, Value: hyrax-public-net-c}
+        - {Key: project, Value: hyrax}
+
+  privSubA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref hyraxVPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !FindInMap [SubnetConfig, PrivateSubnetA, CIDR]
+      Tags:
+        - {Key: Name, Value: hyrax-private-net-a}
+        - {Key: project, Value: hyrax}
+
+  privSubB:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref hyraxVPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !FindInMap [SubnetConfig, PrivateSubnetB, CIDR]
+      Tags:
+        - {Key: Name, Value: hyrax-private-net-b}
+        - {Key: project, Value: hyrax}
+
+  privSubC:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref hyraxVPC
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !FindInMap [SubnetConfig, PrivateSubnetC, CIDR]
+      Tags:
+        - {Key: Name, Value: hyrax-private-net-c}
+        - {Key: project, Value: hyrax}
+
+
+  hyraxPublicRoutes:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref hyraxVPC
+      Tags:
+        - {Key: Name, Value: hyrax-public-route-table}
+        - {Key: project, Value: hyrax}
+  MakeSubAPublic:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref pubSubA
+      RouteTableId: !Ref hyraxPublicRoutes
+  MakeSubBPublic:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref pubSubB
+      RouteTableId: !Ref hyraxPublicRoutes
+  MakeSubCPublic:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref pubSubC
+      RouteTableId: !Ref hyraxPublicRoutes
+  routeToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref hyraxPublicRoutes
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref hyraxIGW
+
+
+
+###############################################################################
+#
+# outputs export variables for public vpc, subnets and private subnets
+#
+###############################################################################
+
+
+Outputs:
+  StackVPC:
+    Description: The ID of the VPC
+    Value: !Ref hyraxVPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VPCId"
+  HyraxSubnet:
+    Description: public subnets used by Hyrax
+    Value: !Ref pubSubA
+    Export:
+      Name: !Sub "${AWS::StackName}-HyraxSubnet"
+  StackPublicNets:
+    Description: public subnets available
+    Value: !Join [',', [ !Ref pubSubA, !Ref pubSubB, !Ref pubSubC ]]
+    Export:
+      Name: !Sub "${AWS::StackName}-PubNets"
+  StackPrivateNets:
+    Description: private subnets available
+    Value: !Join [',', [ !Ref privSubA, !Ref privSubB, !Ref privSubC ]]
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivNets"

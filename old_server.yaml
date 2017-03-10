@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  userInitials:
+    AllowedPattern: '[a-z][a-z]*'
+    ConstraintDescription: lowercase string
+    Description: string that uniquely defines this servers owner
+    MaxLength: '64'
+    MinLength: '1'
+    Type: String
+
+  vpcID:
+    Description: The VPC to create in
+    Type: AWS::EC2::VPC::Id
+
+  publicSubnets:
+    Description: The subnets that are routable from the internet
+    Type: List<AWS::EC2::Subnet::Id>
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0b33d91d
+
+Resources:
+  hyraxServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: manipulated by shell scripts to grant developer access
+      VpcId: !Ref vpcID
+      Tags:
+        - {Key: Name, Value: !Sub "hyrax-server-sg-${userInitials}"}
+        - {Key: project, Value: hyrax}
+
+  hyraxELBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: manipulated by shell scripts to grant developer access
+      VpcId: !Ref vpcID
+      Tags:
+        - {Key: Name, Value: !Sub "hyrax-elb-sg-${userInitials}"}
+        - {Key: project, Value: hyrax}
+
+  hyraxDBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: manipulated by shell scripts to grant developer access
+      VpcId: !Ref vpcID
+      Tags:
+        - {Key: Name, Value: !Sub "hyrax-db-sg-${userInitials}"}
+        - {Key: project, Value: hyrax}
+
+  RootRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: "s3:*"
+                Resource: "*"
+  RootInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        -
+          Ref: "RootRole"
+
+  hyraxServer:
+    DependsOn: hyraxServerSG
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          hyrax_install:
+          - mount
+        mount:
+          files:
+            /tmp/mount_new_vol:
+              content: |
+                #!/bin/bash -xe
+                mkfs -t ext4 /dev/xvdf
+                mkdir /mnt/solr
+                echo "dev/xvdf    /mnt/solr   ext4    defaults,nofail 0   2" >> /etc/fstab
+                mount -a
+              group: root
+              mode: '000500'
+              owner: root
+          commands:
+            01_mkfs:
+              command: mkfs -t ext4 /dev/xvdf
+            02_mkdir:
+              command: mkdir /mnt/solr
+            03_fstab:
+              command: echo "dev/xvdf    /mnt/solr   ext4    defaults,nofail 0   2" >> /etc/fstab
+            04_mount:
+              command: mount -a
+    Properties:
+      IamInstanceProfile: !Ref RootInstanceProfile
+      SecurityGroupIds: [!Ref hyraxServerSG]
+      KeyName: hyrax-keypair
+      ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
+      InstanceType: t2.micro
+      BlockDeviceMappings:
+      - DeviceName: /dev/sdf
+        Ebs:
+          VolumeSize: 4
+          VolumeType: gp2
+          DeleteOnTermination: true
+      SubnetId: !Select [ 0, !Ref publicSubnets ]
+      Tags:
+        - {Key: Name, Value: !Sub "hyrax-server-${userInitials}"}
+        - {Key: project, Value: hyrax}
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash -xe
+           yum update -y aws-cfn-bootstrap
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
