@@ -119,30 +119,30 @@ Resources:
               command: yum remove java-1.7.0-openjdk -y
         solr_install:
           files:
-            /tmp/unpack_solr:         # solr wants to install itself, so unpack its install script and execute
-              content: |
-                #!/bin/bash -xe
-                cd /mnt/solr
-                aws s3 cp s3://hyrax-artifacts/solr-6.3.0.tgz .
-                tar xzf solr-6.3.0.tgz solr-6.3.0/bin/install_solr_service.sh --strip-components=2
-                ./install_solr_service.sh solr-6.3.0.tgz -d /mnt/solr
-                rm install_solr_service.sh -f
-                rm solr-6.3.0.tgz -f
-                service solr start
-                chkconfig solr on
+            /tmp/solr-6.3.0.tgz:
+              source: https://s3.amazonaws.com/hyrax-artifacts/solr-6.3.0.tgz
               group: root
-              mode: '000500'
+              mode: '000400'
               owner: root
+              authentication: S3AccessCreds
           commands:
+            01_extract_installer:
+              command: tar xzf /tmp/solr-6.3.0.tgz solr-6.3.0/bin/install_solr_service.sh --strip-components=2
+              cwd: /tmp
             01_unpack:
-              command: /tmp/unpack_solr > /var/log/unpack_solr.log
-              cwd: /mnt/solr
+              command: ./install_solr_service.sh /tmp/solr-6.3.0.tgz -d /mnt/solr
+              cwd: /tmp
+          services:
+            sysvinit:
+              solr:
+                enabled: "true"
+                ensureRunning: "true"
     Properties:
       IamInstanceProfile: !Ref RootInstanceProfile
       SecurityGroupIds: [!Ref hyraxServerSG]
       KeyName: hyrax-keypair
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
-      InstanceType: m4.large
+      InstanceType: t2.micro
       BlockDeviceMappings:
       - DeviceName: /dev/sdf
         Ebs:
