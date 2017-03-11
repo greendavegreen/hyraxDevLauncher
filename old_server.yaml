@@ -74,6 +74,7 @@ Resources:
                 Effect: "Allow"
                 Action: "s3:*"
                 Resource: "*"
+
   RootInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
@@ -89,8 +90,12 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           hyrax_install:
-          - mount
-        mount:
+          - solr_base
+          - solr_install
+        solr_base:
+          packages:
+            yum:
+              java-1.8.0-openjdk.x86_64: []
           files:
             /tmp/mount_new_vol:
               content: |
@@ -103,14 +108,25 @@ Resources:
               mode: '000500'
               owner: root
           commands:
-            01_mkfs:
-              command: mkfs -t ext4 /dev/xvdf
-            02_mkdir:
-              command: mkdir /mnt/solr
-            03_fstab:
-              command: echo "dev/xvdf    /mnt/solr   ext4    defaults,nofail 0   2" >> /etc/fstab
-            04_mount:
-              command: mount -a
+            01_mount:
+              command: /tmp/mount_new_vol > /var/log/mount_solr_volume.log
+            02_drop_java17:
+              command: yum remove java-1.7.0-openjdk -y
+        solr_install:
+          sources:
+            /mnt/solr s3://hyrax-artifacts/solr-6.3.0.tgz
+          files:
+            /tmp/unpack_solr:
+              content: |
+                #!/bin/bash -xe
+                tar xzf solr-6.3.0.tgz solr-6.3.0/bin/install_solr_service.sh --strip-components=2
+              group: root
+              mode: '000500'
+              owner: root
+          commands:
+            01_unpack:
+              command: /tmp/unpack_solr > /var/log/unpack_solr.log
+              cwd: /mnt/solr
     Properties:
       IamInstanceProfile: !Ref RootInstanceProfile
       SecurityGroupIds: [!Ref hyraxServerSG]
