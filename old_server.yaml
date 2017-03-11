@@ -97,7 +97,7 @@ Resources:
           hyrax_install:
           - solr_base
           - solr_install
-        solr_base:
+        solr_base:        # installs packages and sets up data volume for solr
           packages:
             yum:
               java-1.8.0-openjdk.x86_64: []
@@ -119,7 +119,7 @@ Resources:
               command: yum remove java-1.7.0-openjdk -y
         solr_install:
           files:
-            /tmp/unpack_solr:
+            /tmp/unpack_solr:         # solr wants to install itself, so unpack its install script and execute
               content: |
                 #!/bin/bash -xe
                 cd /mnt/solr
