@@ -87,6 +87,11 @@ Resources:
     DependsOn: hyraxServerSG
     Type: AWS::EC2::Instance
     Metadata:
+      AWS::CloudFormation::Authentication:
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref RootRole
+          buckets: hyrax-artifacts
       AWS::CloudFormation::Init:
         configSets:
           hyrax_install:
@@ -113,13 +118,18 @@ Resources:
             02_drop_java17:
               command: yum remove java-1.7.0-openjdk -y
         solr_install:
-          sources:
-            /mnt/solr s3://hyrax-artifacts/solr-6.3.0.tgz
           files:
             /tmp/unpack_solr:
               content: |
                 #!/bin/bash -xe
+                cd /mnt/solr
+                aws s3 cp s3://hyrax-artifacts/solr-6.3.0.tgz .
                 tar xzf solr-6.3.0.tgz solr-6.3.0/bin/install_solr_service.sh --strip-components=2
+                ./install_solr_service.sh solr-6.3.0.tgz -d /mnt/solr
+                rm install_solr_service.sh -f
+                rm solr-6.3.0.tgz -f
+                service solr start
+                chkconfig solr on
               group: root
               mode: '000500'
               owner: root
@@ -132,7 +142,7 @@ Resources:
       SecurityGroupIds: [!Ref hyraxServerSG]
       KeyName: hyrax-keypair
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
-      InstanceType: t2.micro
+      InstanceType: m4.large
       BlockDeviceMappings:
       - DeviceName: /dev/sdf
         Ebs:
@@ -146,5 +156,6 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
            #!/bin/bash -xe
+           yum update -y
            yum update -y aws-cfn-bootstrap
            /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
