@@ -84,21 +84,54 @@ Resources:
           Ref: "RootRole"
 
   hyraxServer:
-    DependsOn: hyraxServerSG
-    Type: AWS::EC2::Instance
+    Type: "AWS::EC2::Instance"
+    Properties:
+      IamInstanceProfile: !Ref RootInstanceProfile
+      SecurityGroupIds: [!Ref hyraxServerSG]
+      KeyName: hyrax-keypair
+      ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
+      InstanceType: t2.micro
+      SubnetId: !Select [ 0, !Ref publicSubnets ]
+      BlockDeviceMappings:
+      - DeviceName: /dev/sdf
+        Ebs: {VolumeSize: 4, VolumeType: gp2, DeleteOnTermination: true}
+      Tags:
+        - {Key: Name, Value: !Sub "hyrax-server-${userInitials}"}
+        - {Key: project, Value: hyrax}
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash -xe
+           yum-config-manager --enable epel
+           yum update -y
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
     Metadata:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
           type: S3
           roleName: !Ref RootRole
           buckets: hyrax-artifacts
+
       AWS::CloudFormation::Init:
         configSets:
           hyrax_install:
+          - system_mods
           - solr_base
           - solr_install
-        solr_base:        # installs packages and sets up data volume for solr
-          packages:
+          - redis_install
+          - fits_install
+          - jetty_preflight
+          - jetty_install
+          - fedora_preflight
+
+        system_mods:        # system level items that make this a hyrax dev box
+          groups:
+            dac: {}
+          commands:
+            01_add_us_to_group:
+              command: usermod -a -G dac ec2-user
+
+        solr_base:        # file system initialization for solr
+          packages:       # skipped if solr data directory exists (via test on command 1)
             yum:
               java-1.8.0-openjdk.x86_64: []
           files:
@@ -113,11 +146,13 @@ Resources:
               mode: '000500'
               owner: root
           commands:
-            01_mount:
+            01_init_data_filesystem:
               command: /tmp/mount_new_vol > /var/log/mount_solr_volume.log
+              test: test ! -d /mnt/solr
             02_drop_java17:
               command: yum remove java-1.7.0-openjdk -y
-        solr_install:
+
+        solr_install:    # execute solr install script found inside solr tar
           files:
             /tmp/solr-6.3.0.tgz:
               source: https://s3.amazonaws.com/hyrax-artifacts/solr-6.3.0.tgz
@@ -129,7 +164,7 @@ Resources:
             01_extract_installer:
               command: tar xzf /tmp/solr-6.3.0.tgz solr-6.3.0/bin/install_solr_service.sh --strip-components=2
               cwd: /tmp
-            01_unpack:
+            01_run_install:
               command: ./install_solr_service.sh /tmp/solr-6.3.0.tgz -d /mnt/solr
               cwd: /tmp
           services:
@@ -137,25 +172,65 @@ Resources:
               solr:
                 enabled: "true"
                 ensureRunning: "true"
-    Properties:
-      IamInstanceProfile: !Ref RootInstanceProfile
-      SecurityGroupIds: [!Ref hyraxServerSG]
-      KeyName: hyrax-keypair
-      ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
-      InstanceType: t2.micro
-      BlockDeviceMappings:
-      - DeviceName: /dev/sdf
-        Ebs:
-          VolumeSize: 4
-          VolumeType: gp2
-          DeleteOnTermination: true
-      SubnetId: !Select [ 0, !Ref publicSubnets ]
-      Tags:
-        - {Key: Name, Value: !Sub "hyrax-server-${userInitials}"}
-        - {Key: project, Value: hyrax}
-      UserData:
-        Fn::Base64: !Sub |
-           #!/bin/bash -xe
-           yum update -y
-           yum update -y aws-cfn-bootstrap
-           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
+
+        redis_install:   # standard epel redis installed with mod to service start order
+          packages:
+            yum:
+              redis.x86_64: []
+          commands:
+            01_set_start_priority:
+              command: "sed -i 's/# chkconfig:.*/# chkconfig: 345 95 05/g' /etc/init.d/redis"
+          services:
+            sysvinit:
+              redis:
+                enabled: "true"
+                ensureRunning: "true"
+
+        fits_install:
+          sources:
+            /opt/fits-0.8.5: "https://s3.amazonaws.com/hyrax-artifacts/fits-0.8.5.zip"
+          files:
+            /opt/fits:
+              content: "/opt/fits-0.8.5/fits-0.8.5"
+              mode: "120644"
+          commands:
+            01_add_execute:
+              command: chmod a+x /opt/fits/fits.sh
+
+        jetty_preflight:
+          files:
+            /opt/jetty/temp/touched.txt:
+              content: used to force directory create
+            /opt/web/mybase/touched.txt:
+              content: used to force directory create
+
+        jetty_install:
+          users:
+            jetty:
+              homeDir: "/opt/jetty/temp"
+          sources:
+            /opt/jetty:
+              "https://s3.amazonaws.com/hyrax-artifacts/jetty-distribution-9.4.1.v20170120.tar.gz"
+          files:
+            /opt/jetty/current:
+              content: "/opt/jetty/jetty-distribution-9.4.1.v20170120"
+              mode: "120644"
+          commands:
+            01_install_initd_script:
+              command: cp /opt/jetty/jetty-distribution-9.4.1.v20170120/bin/jetty.sh /etc/init.d/jetty
+            03_run_installer:
+              command: java -jar /opt/jetty/jetty-distribution-9.4.1.v20170120/start.jar --add-to-start=deploy,http,console-capture,jsp
+              cwd: /opt/web/mybase
+            04_own_it:
+              command: chown --recursive jetty /opt/jetty
+            05_own_it_more:
+              command: chown --recursive jetty /opt/web/mybase
+
+        fedora_preflight:
+          files:
+            /opt/fedora/fcrepo-webapp-4.7.1.war:
+              source: https://s3.amazonaws.com/hyrax-artifacts/fcrepo-webapp-4.7.1.war
+              group: root
+              mode: '000400'
+              owner: root
+              authentication: S3AccessCreds
