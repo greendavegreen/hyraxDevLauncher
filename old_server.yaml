@@ -90,7 +90,7 @@ Resources:
       SecurityGroupIds: [!Ref hyraxServerSG]
       KeyName: hyrax-keypair
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
-      InstanceType: t2.micro
+      InstanceType: m4.large
       SubnetId: !Select [ 0, !Ref publicSubnets ]
       BlockDeviceMappings:
       - DeviceName: /dev/sdf
@@ -119,9 +119,9 @@ Resources:
           - solr_install
           - redis_install
           - fits_install
+          - fedora_preflight
           - jetty_preflight
           - jetty_install
-          - fedora_preflight
 
         system_mods:        # system level items that make this a hyrax dev box
           groups:
@@ -136,15 +136,15 @@ Resources:
               java-1.8.0-openjdk.x86_64: []
           files:
             /tmp/mount_new_vol:
+              group: root
+              mode: '000500'
+              owner: root
               content: |
                 #!/bin/bash -xe
                 mkfs -t ext4 /dev/xvdf
                 mkdir /mnt/solr
                 echo "dev/xvdf    /mnt/solr   ext4    defaults,nofail 0   2" >> /etc/fstab
                 mount -a
-              group: root
-              mode: '000500'
-              owner: root
           commands:
             01_init_data_filesystem:
               command: /tmp/mount_new_vol > /var/log/mount_solr_volume.log
@@ -211,26 +211,68 @@ Resources:
           sources:
             /opt/jetty:
               "https://s3.amazonaws.com/hyrax-artifacts/jetty-distribution-9.4.1.v20170120.tar.gz"
+            /opt:
+              "https://s3.amazonaws.com/hyrax-artifacts/fcr-conf.zip"
           files:
             /opt/jetty/current:
               content: "/opt/jetty/jetty-distribution-9.4.1.v20170120"
               mode: "120644"
+            /etc/default/jetty:
+              source: https://s3.amazonaws.com/hyrax-artifacts/jetty
+              group: dac
+              mode: '000664'
+              owner: root
+              authentication: S3AccessCreds
+            /opt/web/mybase/webapps/fedora.xml:
+              source: https://s3.amazonaws.com/hyrax-artifacts/fedora.xml
+              group: root
+              mode: '000444'
+              owner: root
+              authentication: S3AccessCreds
+
           commands:
             01_install_initd_script:
               command: cp /opt/jetty/jetty-distribution-9.4.1.v20170120/bin/jetty.sh /etc/init.d/jetty
-            03_run_installer:
+            03_create_opt_web_mybase:
               command: java -jar /opt/jetty/jetty-distribution-9.4.1.v20170120/start.jar --add-to-start=deploy,http,console-capture,jsp
               cwd: /opt/web/mybase
-            04_own_it:
+            04_own_jetty:
               command: chown --recursive jetty /opt/jetty
-            05_own_it_more:
+            05_own_mybase:
               command: chown --recursive jetty /opt/web/mybase
 
-        fedora_preflight:
+            06_own_fcr:
+              command: "chown --recursive root:dac /opt/fcr-conf"
+            07_set_fcr_permissions:
+              command: chmod --recursive 0775 /opt/fcr-conf
+
+
+            15_set_java_path:
+              command: sed -i 's#JAVA=.*#JAVA=/usr/bin/java#g' /etc/default/jetty
+            16_set_jetty_home:
+              command: sed -i 's#JETTY_HOME=.*#JETTY_HOME=/opt/jetty/jetty-distribution-9.4.1.v20170120#g' /etc/default/jetty
+            17_set_jetty_base:
+              command: sed -i 's#JETTY_BASE=.*#JETTY_BASE=/opt/web/mybase#g' /etc/default/jetty
+            18_set_jetty_tmp:
+              command: sed -i 's#TMPDIR=.*#TMPDIR=/opt/jetty/temp#g' /etc/default/jetty
+
+            19_set_start_priority:
+              command: "sed -i 's/# chkconfig:.*/# chkconfig: 345 90 10/g' /etc/init.d/jetty"
+          services:
+            sysvinit:
+              jetty:
+                enabled: "true"
+                ensureRunning: "true"
+
+        fedora_preflight:    # files are written in lexicographic order, which is good since the link must be second
           files:
-            /opt/fedora/fcrepo-webapp-4.7.1.war:
+            /opt/fcrepo-webapp-4.7.1.war:
               source: https://s3.amazonaws.com/hyrax-artifacts/fcrepo-webapp-4.7.1.war
               group: root
-              mode: '000400'
+              mode: '000644'
               owner: root
               authentication: S3AccessCreds
+
+            /opt/fedora:
+              content: /opt/fcrepo-webapp-4.7.1.war
+              mode: "120644"
