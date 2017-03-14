@@ -115,6 +115,7 @@ Resources:
         configSets:
           hyrax_install:
           - system_mods
+          - rails_install
           - solr_base
           - solr_install
           - redis_install
@@ -123,12 +124,35 @@ Resources:
           - jetty_preflight
           - jetty_install
 
+
         system_mods:        # system level items that make this a hyrax dev box
           groups:
             dac: {}
           commands:
             01_add_us_to_group:
               command: usermod -a -G dac ec2-user
+
+        rails_install:
+          packages:
+            yum:
+              ImageMagick: []
+              ruby23: []
+              ruby23-devel: []
+              zlib-devel: []
+              git: []
+          sources:
+            /tmp:
+              "https://s3.amazonaws.com/hyrax-artifacts/LibreOffice_5.2.6_Linux_x86-64_rpm.tar.gz"
+          commands:
+            02_drop_old_ruby:
+              command: yum remove ruby20 -y
+            03_install_dev_tools:
+              command: yum groupinstall "Development Tools" -y
+            04_install_rails:
+              command: gem install rails -v 5.0.1
+            04_install_libre_office:
+              command: yum install *.rpm -y
+              cwd: '/tmp/LibreOffice_5.2.6.2_Linux_x86-64_rpm/RPMS'
 
         solr_base:        # file system initialization for solr
           packages:       # skipped if solr data directory exists (via test on command 1)
@@ -272,7 +296,8 @@ Resources:
               mode: '000644'
               owner: root
               authentication: S3AccessCreds
-
             /opt/fedora:
               content: /opt/fcrepo-webapp-4.7.1.war
               mode: "120644"
+
+
