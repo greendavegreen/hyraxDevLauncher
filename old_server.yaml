@@ -95,6 +95,8 @@ Resources:
       BlockDeviceMappings:
       - DeviceName: /dev/sdf
         Ebs: {VolumeSize: 4, VolumeType: gp2, DeleteOnTermination: true}
+      - DeviceName: /dev/sdg
+        Ebs: {VolumeSize: 4, VolumeType: gp2, DeleteOnTermination: true}
       Tags:
         - {Key: Name, Value: !Sub "hyrax-server-${userInitials}"}
         - {Key: project, Value: hyrax}
@@ -120,6 +122,7 @@ Resources:
           - solr_install
           - redis_install
           - fits_install
+          - fedora_base
           - fedora_preflight
           - jetty_preflight
           - jetty_install
@@ -135,11 +138,13 @@ Resources:
         rails_install:
           packages:
             yum:
-              ImageMagick: []
               ruby23: []
               ruby23-devel: []
               zlib-devel: []
               git: []
+              sqlite-devel: []
+              nodejs: []
+              ImageMagick: []
           sources:
             /tmp:
               "https://s3.amazonaws.com/hyrax-artifacts/LibreOffice_5.2.6_Linux_x86-64_rpm.tar.gz"
@@ -188,7 +193,7 @@ Resources:
             01_extract_installer:
               command: tar xzf /tmp/solr-6.3.0.tgz solr-6.3.0/bin/install_solr_service.sh --strip-components=2
               cwd: /tmp
-            01_run_install:
+            02_run_install:
               command: ./install_solr_service.sh /tmp/solr-6.3.0.tgz -d /mnt/solr
               cwd: /tmp
           services:
@@ -220,6 +225,36 @@ Resources:
           commands:
             01_add_execute:
               command: chmod a+x /opt/fits/fits.sh
+
+        fedora_base:        # file system initialization for fedora
+          files:
+            /tmp/mount_new_fedora_vol:
+              group: root
+              mode: '000500'
+              owner: root
+              content: |
+                #!/bin/bash -xe
+                mkfs -t ext4 /dev/xvdg
+                mkdir /mnt/fedora
+                echo "dev/xvdg    /mnt/fedora   ext4    defaults,nofail 0   2" >> /etc/fstab
+                mount -a
+          commands:
+            01_connect_fedora_drive:
+              command: /tmp/mount_new_fedora_vol > /var/log/mount_fedora_volume.log
+              test: test ! -d /mnt/fedora
+
+        fedora_preflight:    # files are written in lexicographic order, which is good since the link must be second
+          files:
+            /opt/fcrepo-webapp-4.7.1.war:
+              source: https://s3.amazonaws.com/hyrax-artifacts/fcrepo-webapp-4.7.1.war
+              group: root
+              mode: '000644'
+              owner: root
+              authentication: S3AccessCreds
+            /opt/fedora:
+              content: /opt/fcrepo-webapp-4.7.1.war
+              mode: "120644"
+
 
         jetty_preflight:
           files:
@@ -288,16 +323,5 @@ Resources:
                 enabled: "true"
                 ensureRunning: "true"
 
-        fedora_preflight:    # files are written in lexicographic order, which is good since the link must be second
-          files:
-            /opt/fcrepo-webapp-4.7.1.war:
-              source: https://s3.amazonaws.com/hyrax-artifacts/fcrepo-webapp-4.7.1.war
-              group: root
-              mode: '000644'
-              owner: root
-              authentication: S3AccessCreds
-            /opt/fedora:
-              content: /opt/fcrepo-webapp-4.7.1.war
-              mode: "120644"
 
 
