@@ -121,6 +121,7 @@ Resources:
           - solr_base
           - solr_install
           - redis_install
+          - app_install
           - fits_install
           - fedora_base
           - fedora_preflight
@@ -159,6 +160,26 @@ Resources:
               command: yum install *.rpm -y
               cwd: '/tmp/LibreOffice_5.2.6.2_Linux_x86-64_rpm/RPMS'
 
+        app_install:
+          files:
+            /var/app/touched.txt:
+              content: used to force directory create
+              owner: ec2-user
+              group: dac
+              mode: '000775'
+          commands:
+            01_app_checkout:
+              command: git clone --quiet https://github.com/greendavegreen/hyrax_app.git hyrax_app
+              cwd: /var/app
+            02_perms:
+              command: "chown --recursive ec2-user:dac /var/app/hyrax_app"
+            03_get_gems:
+              command: "bundle install"
+              cwd: /var/app/hyrax_app
+            04_create_db_schema:
+              command: "rake db:migrate"
+              cwd: /var/app/hyrax_app
+
         solr_base:        # file system initialization for solr
           packages:       # skipped if solr data directory exists (via test on command 1)
             yum:
@@ -182,6 +203,9 @@ Resources:
               command: yum remove java-1.7.0-openjdk -y
 
         solr_install:    # execute solr install script found inside solr tar
+          sources:
+            /tmp:
+              "https://s3.amazonaws.com/hyrax-artifacts/solr_core_config.tgz"
           files:
             /tmp/solr-6.3.0.tgz:
               source: https://s3.amazonaws.com/hyrax-artifacts/solr-6.3.0.tgz
@@ -195,6 +219,9 @@ Resources:
               cwd: /tmp
             02_run_install:
               command: ./install_solr_service.sh /tmp/solr-6.3.0.tgz -d /mnt/solr
+              cwd: /tmp
+            03_core_install:
+              command: sudo -u solr /opt/solr/bin/solr create_core -c hydra-development -d /tmp
               cwd: /tmp
           services:
             sysvinit:
