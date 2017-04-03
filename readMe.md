@@ -19,7 +19,11 @@ The scripts are generally only supported for running in the us-east-1 region.  T
 
 4. You will be taken to the stack-launch page with the s3-location of the template filled in.  Select Next.
 
-5. You will be asked to give a (unique) name this stack of resources you are creating (remember this to be able to clean up the stack later), specify the name of the VPC stack to launch inside of, the keypair name you have posession of, and a set of initials or unique name to use for your system.  The final VM will get tagged with the name hyrax-server-XXX where XXX is the string you provide.  This provides a hook for scripts to locate resources connected to a particular developer node for startup, shutdown, termination, cleanup later on.
+5. You will be asked to give:
+ - a (unique) name this stack of resources you are creating (remember this to be able to clean up the stack later)
+ - a name of the VPC stack (from above) to launch inside of
+ - the ssh keypair name you have created or uploaded to the AWS Console
+ - a unique name (user initials?) to use for your system.  The final VM will get tagged with the name hyrax-server-XXX where XXX is the string you provide.  This provides a hook for scripts to locate resources connected to a particular developer node for startup, shutdown, termination, cleanup later on.
 
 6. Select Next.  you will have the chance to provide extra options on the Options panel.  Hit Next.
 
