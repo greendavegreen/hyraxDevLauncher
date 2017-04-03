@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Script to produce a dev hyrax server for a given user.'
+Description: 'Script to produce a dev solr server for a given user.'
 Parameters:
   NetworkStackName:
     Type: String
@@ -31,7 +31,7 @@ Resources:
             !Sub "${NetworkStackName}-VPCId"
         userInitials:
           !Ref HyraxUserInitials
-        keyPairName:
+        keypairName:
           !Ref KeypairName
-      TemplateURL: https://s3.amazonaws.com/hyrax-cf/singleNodeServer.yaml
+      TemplateURL: https://s3.amazonaws.com/hyrax-cf/solrServer.yaml
       TimeoutInMinutes: '5'

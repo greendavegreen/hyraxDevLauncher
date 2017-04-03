@@ -9,6 +9,9 @@ Parameters:
     MinLength: '1'
     Type: String
 
+  keypairName:
+    Type: AWS::EC2::KeyPair::KeyName
+
   vpcID:
     Description: The VPC to create in
     Type: AWS::EC2::VPC::Id
@@ -88,7 +91,7 @@ Resources:
     Properties:
       IamInstanceProfile: !Ref RootInstanceProfile
       SecurityGroupIds: [!Ref hyraxServerSG]
-      KeyName: hyrax-keypair
+      KeyName: !Ref keypairName
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
       InstanceType: m4.large
       SubnetId: !Select [ 0, !Ref publicSubnets ]
@@ -118,10 +121,10 @@ Resources:
           hyrax_install:
           - system_mods
           - rails_install
+          - app_install
           - solr_base
           - solr_install
           - redis_install
-          - app_install
           - fits_install
           - fedora_base
           - fedora_preflight
@@ -174,10 +177,10 @@ Resources:
             02_perms:
               command: "chown --recursive ec2-user:dac /var/app/hyrax_app"
             03_get_gems:
-              command: "bundle install"
+              command: "sudo -u ec2-user /usr/local/bin/bundle install"
               cwd: /var/app/hyrax_app
             04_create_db_schema:
-              command: "rake db:migrate"
+              command: "sudo -u ec2-user /usr/local/bin/rake db:migrate"
               cwd: /var/app/hyrax_app
 
         solr_base:        # file system initialization for solr

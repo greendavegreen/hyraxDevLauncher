@@ -1,0 +1,158 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  userInitials:
+    AllowedPattern: '[a-z][a-z]*'
+    ConstraintDescription: lowercase string
+    Description: string that uniquely defines this servers owner
+    MaxLength: '64'
+    MinLength: '1'
+    Type: String
+
+  keypairName:
+    Type: AWS::EC2::KeyPair::KeyName
+
+  vpcID:
+    Description: The VPC to create in
+    Type: AWS::EC2::VPC::Id
+
+  publicSubnets:
+    Description: The subnets that are routable from the internet
+    Type: List<AWS::EC2::Subnet::Id>
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0b33d91d
+
+Resources:
+  hyraxSolrSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: manipulated by shell scripts to grant developer access
+      VpcId: !Ref vpcID
+      Tags:
+        - {Key: Name, Value: !Sub "hyrax-solr-sg-${userInitials}"}
+        - {Key: project, Value: hyrax}
+
+  RootRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: "s3:*"
+                Resource: "*"
+
+  RootInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        -
+          Ref: "RootRole"
+
+  solrServer:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      IamInstanceProfile: !Ref RootInstanceProfile
+      SecurityGroupIds: [!Ref hyraxSolrSG]
+      KeyName: !Ref keypairName
+      ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
+      InstanceType: m4.large
+      SubnetId: !Select [ 0, !Ref publicSubnets ]
+      BlockDeviceMappings:
+      - DeviceName: /dev/sdf
+        Ebs: {VolumeSize: 4, VolumeType: gp2, DeleteOnTermination: true}
+      Tags:
+        - {Key: Name, Value: !Sub "hyrax-solr-${userInitials}"}
+        - {Key: project, Value: hyrax}
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash -xe
+           yum update -y
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource solrServer --configsets single_node_solr --region ${AWS::Region}
+    Metadata:
+      AWS::CloudFormation::Authentication:
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref RootRole
+          buckets: hyrax-artifacts
+
+      AWS::CloudFormation::Init:
+        configSets:
+          single_node_solr:
+          - solr_base
+          - solr_install
+
+        solr_base:        # file system initialization for solr
+          packages:       # skipped if solr data directory exists (via test on command 1)
+            yum:
+              java-1.8.0-openjdk.x86_64: []
+          files:
+            /tmp/mount_new_vol:
+              group: root
+              mode: '000500'
+              owner: root
+              content: |
+                #!/bin/bash -xe
+                mkfs -t ext4 /dev/xvdf
+                mkdir /mnt/solr
+                echo "dev/xvdf    /mnt/solr   ext4    defaults,nofail 0   2" >> /etc/fstab
+                mount -a
+          commands:
+            01_init_data_filesystem:
+              command: /tmp/mount_new_vol > /var/log/mount_solr_volume.log
+              test: test ! -d /mnt/solr
+            02_drop_java17:
+              command: yum remove java-1.7.0-openjdk -y
+
+        solr_install:    # execute solr install script found inside solr tar
+          sources:
+            /tmp:
+              "https://s3.amazonaws.com/hyrax-artifacts/solr_core_config.tgz"
+          files:
+            /tmp/solr-6.3.0.tgz:
+              source: https://s3.amazonaws.com/hyrax-artifacts/solr-6.3.0.tgz
+              group: root
+              mode: '000400'
+              owner: root
+              authentication: S3AccessCreds
+          commands:
+            01_extract_installer:
+              command: tar xzf /tmp/solr-6.3.0.tgz solr-6.3.0/bin/install_solr_service.sh --strip-components=2
+              cwd: /tmp
+            02_run_install:
+              command: ./install_solr_service.sh /tmp/solr-6.3.0.tgz -d /mnt/solr
+              cwd: /tmp
+            03_core_install:
+              command: sudo -u solr /opt/solr/bin/solr create_core -c hydra-development -d /tmp
+              cwd: /tmp
+          services:
+            sysvinit:
+              solr:
+                enabled: "true"
+                ensureRunning: "true"
+
+
+
+
+
+
+
