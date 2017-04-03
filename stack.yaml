@@ -23,15 +23,15 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-        publicSubnets:
+        PublicSubnets:
           Fn::ImportValue:
             !Sub "${NetworkStackName}-PubNets"
-        vpcID:
+        VpcID:
           Fn::ImportValue:
             !Sub "${NetworkStackName}-VPCId"
-        userInitials:
+        UserInitials:
           !Ref HyraxUserInitials
-        keyPairName:
+        KeyPairName:
           !Ref KeypairName
       TemplateURL: https://s3.amazonaws.com/hyrax-cf/singleNodeServer.yaml
       TimeoutInMinutes: '5'

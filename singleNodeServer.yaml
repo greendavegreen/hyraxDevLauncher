@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
 Parameters:
-  userInitials:
+  UserInitials:
     AllowedPattern: '[a-z][a-z]*'
     ConstraintDescription: lowercase string
     Description: string that uniquely defines this servers owner
@@ -9,14 +9,14 @@ Parameters:
     MinLength: '1'
     Type: String
 
-  keypairName:
+  KeypairName:
     Type: AWS::EC2::KeyPair::KeyName
 
-  vpcID:
+  VpcID:
     Description: The VPC to create in
     Type: AWS::EC2::VPC::Id
 
-  publicSubnets:
+  PublicSubnets:
     Description: The subnets that are routable from the internet
     Type: List<AWS::EC2::Subnet::Id>
 
@@ -30,27 +30,27 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: manipulated by shell scripts to grant developer access
-      VpcId: !Ref vpcID
+      VpcId: !Ref VpcID
       Tags:
-        - {Key: Name, Value: !Sub "hyrax-server-sg-${userInitials}"}
+        - {Key: Name, Value: !Sub "hyrax-server-sg-${UserInitials}"}
         - {Key: project, Value: hyrax}
 
   hyraxELBSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: manipulated by shell scripts to grant developer access
-      VpcId: !Ref vpcID
+      VpcId: !Ref VpcID
       Tags:
-        - {Key: Name, Value: !Sub "hyrax-elb-sg-${userInitials}"}
+        - {Key: Name, Value: !Sub "hyrax-elb-sg-${UserInitials}"}
         - {Key: project, Value: hyrax}
 
   hyraxDBSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: manipulated by shell scripts to grant developer access
-      VpcId: !Ref vpcID
+      VpcId: !Ref VpcID
       Tags:
-        - {Key: Name, Value: !Sub "hyrax-db-sg-${userInitials}"}
+        - {Key: Name, Value: !Sub "hyrax-db-sg-${UserInitials}"}
         - {Key: project, Value: hyrax}
 
   RootRole:
@@ -91,17 +91,17 @@ Resources:
     Properties:
       IamInstanceProfile: !Ref RootInstanceProfile
       SecurityGroupIds: [!Ref hyraxServerSG]
-      KeyName: !Ref keypairName
+      KeyName: !Ref KeypairName
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
       InstanceType: m4.large
-      SubnetId: !Select [ 0, !Ref publicSubnets ]
+      SubnetId: !Select [ 0, !Ref PublicSubnets ]
       BlockDeviceMappings:
       - DeviceName: /dev/sdf
         Ebs: {VolumeSize: 4, VolumeType: gp2, DeleteOnTermination: true}
       - DeviceName: /dev/sdg
         Ebs: {VolumeSize: 4, VolumeType: gp2, DeleteOnTermination: true}
       Tags:
-        - {Key: Name, Value: !Sub "hyrax-server-${userInitials}"}
+        - {Key: Name, Value: !Sub "hyrax-server-${UserInitials}"}
         - {Key: project, Value: hyrax}
       UserData:
         Fn::Base64: !Sub |
