@@ -35,24 +35,6 @@ Resources:
         - {Key: Name, Value: !Sub "hyrax-server-sg-${UserInitials}"}
         - {Key: project, Value: hyrax}
 
-  hyraxELBSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: manipulated by shell scripts to grant developer access
-      VpcId: !Ref VpcID
-      Tags:
-        - {Key: Name, Value: !Sub "hyrax-elb-sg-${UserInitials}"}
-        - {Key: project, Value: hyrax}
-
-  hyraxDBSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: manipulated by shell scripts to grant developer access
-      VpcId: !Ref VpcID
-      Tags:
-        - {Key: Name, Value: !Sub "hyrax-db-sg-${UserInitials}"}
-        - {Key: project, Value: hyrax}
-
   RootRole:
     Type: "AWS::IAM::Role"
     Properties:
