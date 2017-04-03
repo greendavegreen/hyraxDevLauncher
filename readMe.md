@@ -19,8 +19,8 @@ The scripts are generally only supported for running in the us-east-1 region.  T
 
 4. You will be taken to the stack-launch page with the s3-location of the template filled in.  Select Next.
 
-5. You will be asked to give:
- - a (unique) name this stack of resources you are creating (remember this to be able to clean up the stack later)
+5. You will be asked to provide options/aguments/names:
+ - a (unique) name this stack of resources you are creating (remember this to be able to clean up/terminate the stack later)
  - a name of the VPC stack (from above) to launch inside of
  - the ssh keypair name you have created or uploaded to the AWS Console
  - a unique name (user initials?) to use for your system.  The final VM will get tagged with the name hyrax-server-XXX where XXX is the string you provide.  This provides a hook for scripts to locate resources connected to a particular developer node for startup, shutdown, termination, cleanup later on.
@@ -101,11 +101,15 @@ ssh ec2-user@XXX.cloud.lnadac.org
 9. once on your machine, you will find:
 - solr running as an init.d service answering port 8983
 - Fedora running inside Jetty service, answering port 8080
-- redis, installed as service and running on standar port
-- source code for a default hyrax_app checked out into /var/app/hyrax_app
+- redis, installed as service and running on standard port
+- LibreOffice installed 
+- FITS installed
+- source code for a default [hyrax_app](https://github.com/greendavegreen/hyrax_app.git) checked out into /var/app/hyrax_app
+- bundle install and rake db:migrate will have already been run for you
 - to run the hyrax rails app from the app directory use the command `puma`
 - it should then be running on port 3000 in development mode
 
+It should be noted that REDIS, LibreOffice, and FITS might need to be introduced to the hyrax app.  Currently, they are invocable from the command line, but it is unclear if this is enough for Hyrax to engage with them.
 10. turn it off when not in use to reduce billing:
 ```console
 $ aws hyrax-stop XXX
@@ -113,3 +117,5 @@ issuing stop request for i-035687e0a28d829ea
 removing firewall hole for current ip
 waiting for instance state to transition to stopped
 ```
+
+11. Terminate it when you are really done with it.  This can be done in the cloudformation section of the AWS Console by requesting a delete of the StackName that you generated to start this in step 5 above.
