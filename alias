@@ -1,0 +1,328 @@
+[toplevel]
+
+whoami = sts get-caller-identity
+
+create-assume-role =
+  !f() {
+    aws iam create-role --role-name "${1}" \
+      --assume-role-policy-document \
+        "{\"Statement\":[{\
+            \"Action\":\"sts:AssumeRole\",\
+            \"Effect\":\"Allow\",\
+            \"Principal\":{\"Service\":\""${2}".amazonaws.com\"},\
+            \"Sid\":\"\"\
+          }],\
+          \"Version\":\"2012-10-17\"\
+        }";
+  }; f
+
+
+running-instances = ec2 describe-instances \
+    --filter Name=instance-state-name,Values=running \
+    --output table \
+    --query 'Reservations[].Instances[].{ID: InstanceId,Hostname: PublicDnsName,Name: Tags[?Key==`Name`].Value | [0],Type: InstanceType, Platform: Platform || `Linux`}'
+
+ebs-volumes= ec2 describe-volumes \
+    --query 'Volumes[].{VolumeId: VolumeId,State: State,Size: Size,Name: Tags[0].Value,AZ: AvailabilityZone}' \
+    --output table
+
+amazon-linux-amis = ec2 describe-images \
+    --filter \
+      Name=owner-alias,Values=amazon \
+      Name=name,Values="amzn-ami-hvm-*" \
+      Name=architecture,Values=x86_64 \
+      Name=virtualization-type,Values=hvm \
+      Name=root-device-type,Values=ebs \
+      Name=block-device-mapping.volume-type,Values=gp2 \
+    --query "reverse(sort_by(Images, &CreationDate))[*].[ImageId,Name,Description]" \
+    --output text
+
+list-sgs = ec2 describe-security-groups --query "SecurityGroups[].[GroupId, GroupName]" --output text
+
+sg-rules = !f() { aws ec2 describe-security-groups \
+    --query "SecurityGroups[].IpPermissions[].[FromPort,ToPort,IpProtocol,join(',',IpRanges[].CidrIp)]" \
+    --group-id "$1" --output text; }; f
+
+tostring =
+  !f() {
+    jp -f "${1}" 'to_string(@)'
+  }; f
+
+tostring-with-jq =
+  !f() {
+    cat "${1}" | jq 'tostring'
+  }; f
+
+authorize-my-ip =
+  !f() {
+    ip=$(aws myip)
+    aws ec2 authorize-security-group-ingress --group-id ${1} --cidr $ip/32 --protocol tcp --port 22
+  }; f
+
+get-group-id =
+  !f() {
+    aws ec2 describe-security-groups --filters Name=group-name,Values=${1} --query SecurityGroups[0].GroupId --output text
+  }; f
+
+get-tagged-group-id =
+  !f() {
+    aws ec2 describe-security-groups --filters Name=tag-key,Values=Name Name=tag-value,Values=${1} --query SecurityGroups[0].GroupId --output text
+  }; f
+
+
+authorize-my-ip-by-name =
+  !f() {
+    group_id=$(aws get-group-id "${1}")
+    aws authorize-my-ip "$group_id"
+  }; f
+
+# list all security group port ranges open to 0.0.0.0/0
+public-ports = ec2 describe-security-groups \
+  --filters Name=ip-permission.cidr,Values=0.0.0.0/0 \
+  --query 'SecurityGroups[].{
+    GroupName:GroupName,
+    GroupId:GroupId,
+    PortRanges:
+      IpPermissions[?contains(IpRanges[].CidrIp, `0.0.0.0/0`)].[
+        join(`:`, [IpProtocol, join(`-`, [to_string(FromPort), to_string(ToPort)])])
+      ][]
+  }'
+
+# List or set your region
+region = !f() { [[ $# -eq 1 ]] && aws configure set region "$1" || aws configure get region; }; f
+
+find-access-key = !f() {
+    clear_to_eol=$(tput el)
+    for i in $(aws iam list-users --query "Users[].UserName" --output text); do
+      printf "\r%sSearching...$i" "${clear_to_eol}"
+      result=$(aws iam list-access-keys --output text --user-name "${i}" --query "AccessKeyMetadata[?AccessKeyId=='${1}'].UserName";)
+      if [ -n "${result}" ]; then
+         printf "\r%s%s is owned by %s.\n" "${clear_to_eol}" "$1" "${result}"
+         break
+      fi
+    done
+    if [ -z "${result}" ]; then
+      printf "\r%sKey not found." "${clear_to_eol}"
+    fi
+  }; f
+
+docker-ecr-login =
+  !f() {
+    region=$(aws configure get region)
+    endpoint=$(aws ecr get-authorization-token --region $region --output text --query authorizationData[].proxyEndpoint)
+    passwd=$(aws ecr get-authorization-token --region $region --output text --query authorizationData[].authorizationToken | base64 --decode | cut -d: -f2)
+    docker login -u AWS -p $passwd $endpoint
+  }; f
+
+myip =
+    !f() {
+      dig +short myip.opendns.com @resolver1.opendns.com
+    }; f
+
+allow-my-ip-id =
+    !f() {
+      my_ip=$(aws myip)
+      aws ec2 authorize-security-group-ingress --group-id ${1} --protocol ${2} --port ${3} --cidr $my_ip/32
+    }; f
+
+allow-my-ip =
+    !f() {
+      my_ip=$(aws myip)
+      aws ec2 authorize-security-group-ingress --group-id ${1} --protocol ${2} --port ${3} --cidr $my_ip/32
+    }; f
+
+revoke-my-ip =
+    !f() {
+      my_ip=$(aws myip)
+      aws ec2 revoke-security-group-ingress --group-id ${1} --protocol ${2} --port ${3} --cidr $my_ip/32
+    }; f
+
+allow-my-ip-all =
+    !f() {
+      aws allow-my-ip ${1} all all
+    }; f
+
+revoke-my-ip-all =
+    !f() {
+      aws revoke-my-ip ${1} all all
+    }; f
+
+hyrax-stopped-id =
+    !f() {
+      aws ec2 describe-instances \
+        --filters "Name=tag:Name,Values=hyrax-server-$1" "Name=instance-state-name,Values=stopped" \
+        --output text \
+        --query 'Reservations[*].Instances[*].{id:InstanceId}'
+    }; f
+
+hyrax-id =
+    !f() {
+      aws ec2 describe-instances \
+        --filters "Name=tag:Name,Values=hyrax-server-$1" \
+        --output text \
+        --query 'Reservations[*].Instances[*].{id:InstanceId}'
+    }; f
+
+hyrax-db-addr =
+    !f() {
+      aws rds describe-db-instances \
+        --filter "Name=db-instance-id,Values=hyrax-db-$1" \
+        --output text \
+        --query 'DBInstances[0].Endpoint.Address'
+    }; f
+
+hyrax-ip =
+    !f() {
+      aws ec2 describe-instances \
+        --filters "Name=tag:Name,Values=hyrax-server-$1" "Name=instance-state-name,Values=running" \
+        --output text \
+        --query 'Reservations[*].Instances[*].{addr:PublicIpAddress}'
+    }; f
+
+hyrax-tg = 
+    !f() {
+      aws elbv2 describe-target-groups  --output text --names "hyrax-tg-$1" --query 'TargetGroups[].TargetGroupArn'
+    }; f
+
+hyrax-login =
+    !f() {
+      if [ -z "${1}" ]; then
+        echo "Missing Argument: id of vm owner (ie. dg)" 
+        return 
+      fi
+      ssh -i ~/.ssh/hyrax-keypair.pem ec2-user@$(aws hyrax-ip ${1})
+    }; f
+
+hyrax-start =
+    !f() {
+      if [ -z "${1}" ]; then
+        echo "Missing Argument: id of vm owner (ie. dg)" 
+        return 
+      fi
+      instance_id=$(aws hyrax-stopped-id ${1})
+      if [ -z "$instance_id" ]; then
+        echo "No tagged and STOPPED Instance in Account/Region:  hyrax-server-${1}"
+      else
+        aws ec2 start-instances --instance-ids $(aws hyrax-stopped-id ${1}) --output table --query 'StartingInstances[0].{prior:PreviousState.Name,current:CurrentState.Name}'
+      fi
+      echo "Punching hole in firewall for your IP: $(aws myip)"
+      group_id=$(aws get-tagged-group-id "hyrax-server-sg-${1}")
+      $(aws allow-my-ip-all ${group_id})
+      
+      if [ ! -z "$instance_id" ]; then
+        echo "waiting for instance $instance_id to start"
+        aws ec2 wait instance-running --instance-ids $instance_id
+      fi
+
+      echo "setting dns record for instance"
+      f=$(aws hyrax-set-dns ${1})
+      
+      echo "${f}"      
+      echo "Instance available publicly at ip $(aws hyrax-ip ${1})"
+    }; f
+
+hyrax-elb =
+    !f() {
+      if [ -z "${1}" ]; then
+        echo "Missing Argument: id of vm owner (ie. dg)" 
+        return 
+      fi
+      vpc_id=$(aws ec2 describe-vpcs --filters Name=tag:Name,Values=hyrax-vpc --output text --query 'Vpcs[0].VpcId')
+      subs=$(aws ec2 describe-subnets --output text --filters "Name=vpc-id,Values=$vpc_id" --query 'Subnets[].SubnetId')
+      echo "subs $subs"
+      
+      sg_id=$(aws get-group-id "hyrax-elb-sg-$1")
+      echo "sg $sg_id"
+
+      lb_arn=$(aws elbv2 create-load-balancer \ 
+			 --name "hyrax-elb-$1" \
+                         --subnets $subs \
+                         --security-groups $sg_id \
+		  	 --output text \
+			 --query 'LoadBalancers[0].LoadBalancerArn')
+
+      echo "created lb $lb_arn"
+ 
+      t_group=$(aws hyrax-tg $1)
+      echo "routing port 80 to target group $t_group"
+
+      aws elbv2 create-listener --load-balancer-arn $lb_arn \
+	--protocol HTTP \
+	--port 80 \
+	--default-actions Type=forward,TargetGroupArn=$t_group
+
+      dom_name="$1.dac.lnadac.org"
+      cert_arn=$(aws acm list-certificates --output text --query "CertificateSummaryList[*]" | grep $dom_name | cut -f1)
+      echo "cert $cert_arn"
+
+      echo "routing port 443 to target group $t_group with cert for $dom_name"
+      aws elbv2 create-listener --load-balancer-arn $lb_arn \
+        --protocol HTTPS \
+        --port 443 \
+        --certificates CertificateArn=$cert_arn \
+        --default-actions Type=forward,TargetGroupArn=$t_group
+    }; f
+
+hyrax-stop =
+    !f() {
+      if [ -z "${1}" ]; then
+        echo "Missing Argument: id of vm owner (ie. dg)" 
+        return 
+      fi
+      instance_id=$(aws hyrax-id ${1})
+      group_id=$(aws get-tagged-group-id "hyrax-server-sg-${1}")
+      
+      echo "issuing stop request for $instance_id"
+      output=$(aws ec2 stop-instances --instance-ids $instance_id)
+      
+      echo "removing firewall hole for current ip"
+      $(aws revoke-my-ip-all ${group_id})
+      
+      echo "waiting for instance state to transition to stopped"
+      aws ec2 wait instance-stopped --instance-ids $instance_id 
+    }; f
+
+hyrax-set-dns =
+    !f() {
+      if [ -z "${1}" ]; then
+        echo "Missing Argument: id of vm owner (ie. dg)" 
+        return 
+      fi
+      dom_name='lnadac.org.'
+      zone_id=$(aws route53 list-hosted-zones-by-name --dns-name "$dom_name" --output text --query "HostedZones[?Name=='$dom_name'].Id")
+      if [ -z "$zone_id" ]; then
+        echo "NoSuchZone: failed to find DNS hosted zone for $dom_name" 
+        return 
+      fi
+
+      # Fill a temp file with valid JSON
+      TMPFILE=$(mktemp /tmp/temporary-file.XXXXXXXX)
+      
+      IP=$(aws hyrax-ip ${1})
+      RECORDSET="${1}.cloud.$dom_name"
+      TTL=30
+      COMMENT="hyrax vm owned by ${1} generated @ `date`"
+      TYPE="A"
+      cat > ${TMPFILE} << EOF
+      {
+        "Comment":"$COMMENT",
+        "Changes":[
+          {
+            "Action":"UPSERT",
+            "ResourceRecordSet":{
+              "ResourceRecords":[
+                {
+                  "Value":"$IP"
+                }
+              ],
+              "Name":"$RECORDSET",
+              "Type":"$TYPE",
+              "TTL":$TTL
+            }
+          }
+        ]
+      }
+      EOF
+      output=$( aws route53 change-resource-record-sets --hosted-zone-id $zone_id --change-batch file://"$TMPFILE" )
+      echo "A record set for ${RECORDSET}" 
+      }; f
