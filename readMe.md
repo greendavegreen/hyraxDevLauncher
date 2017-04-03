@@ -46,12 +46,12 @@ The Network Security Group attached to it will not allow ANY connections to the 
 Steps to get access to your new VM via the console and command line:
 
 1. Install the AWS command line tools  [Install Instructions](http://docs.aws.amazon.com/cli/latest/userguide/installing.html)
-2. Obtain a AccessKey/SecretAccessKey pair that allows usage of AWS APIs. [Getting API keys] (http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey) 
-3. Configure the command line tool with this keypair as your default keypair for api access. [Configure CLI] (http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html)
+2. Obtain a AccessKey/SecretAccessKey pair that allows usage of AWS APIs. [Getting API keys](http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey) 
+3. Configure the command line tool with this keypair as your default keypair for api access. [Configure CLI](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html)
 
 4. Inside your accounts .aws directory, you need to create an empty cli directory and place a copy of the file named 'alias' from this github project into it.
 
 ```console
 $ mkdir -p ~/.aws/cli
-$ cp awscli-aliases/alias ~/.aws/cli/alias
+$ curl -o !/.aws/cli/alias https://raw.githubusercontent.com/greendavegreen/hyraxDevLauncher/master/alias
 ```
