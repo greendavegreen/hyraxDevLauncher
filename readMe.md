@@ -98,7 +98,15 @@ A record set for XXX.cloud.lnadac.org.
 ssh ec2-user@XXX.cloud.lnadac.org
 ```
 
-8. turn it off when not in use to reduce billing:
+9. once on your machine, you will find:
+- solr running as an init.d service answering port 8983
+- Fedora running inside Jetty service, answering port 8080
+- redis, installed as service and running on standar port
+- source code for a default hyrax_app checked out into /var/app/hyrax_app
+- to run the hyrax rails app from the app directory use the command `puma`
+- it should then be running on port 3000 in development mode
+
+10. turn it off when not in use to reduce billing:
 ```console
 $ aws hyrax-stop XXX
 issuing stop request for i-035687e0a28d829ea
