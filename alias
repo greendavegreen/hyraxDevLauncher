@@ -214,11 +214,13 @@ hyrax-start =
         aws ec2 wait instance-running --instance-ids $instance_id
       fi
 
-      echo "setting dns record for instance"
       f=$(aws hyrax-set-dns ${1})
       
+      echo "\nInstance available publicly at ip $(aws hyrax-ip ${1})"
       echo "${f}"      
-      echo "Instance available publicly at ip $(aws hyrax-ip ${1})"
+      
+      echo "\n connect via ssh using:"
+      echo "  ssh -i keyPairName.pem ec2-user@${1}.cloud.lnadac.org" 
     }; f
 
 hyrax-elb =
@@ -324,5 +326,5 @@ hyrax-set-dns =
       }
       EOF
       output=$( aws route53 change-resource-record-sets --hosted-zone-id $zone_id --change-batch file://"$TMPFILE" )
-      echo "A record set for ${RECORDSET}" 
+      echo "DNS A-record set for ${RECORDSET}" 
       }; f

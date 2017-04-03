@@ -31,6 +31,8 @@ The scripts are generally only supported for running in the us-east-1 region.  T
 
 8. Finally, hit create.
 
+9. you will be taken to the cloudformation console where you can watch the progress of the stack creation.  It usually takes approximately 5 minutes to complete.
+
 
 You should now have a VM inside your account, that is running:
   - solr
@@ -54,4 +56,52 @@ Steps to get access to your new VM via the console and command line:
 ```console
 $ mkdir -p ~/.aws/cli
 $ curl -o !/.aws/cli/alias https://raw.githubusercontent.com/greendavegreen/hyraxDevLauncher/master/alias
+```
+
+5. do a quick check that you have the right identity, this should show the lnadac account and your IAM username
+
+```console
+$ aws whoami
+{
+    "Account": "xxxxxxxxxxxxxx", 
+    "UserId": "yyyyyyyyyyyyy", 
+    "Arn": "arn:aws:iam::xxxxxxxxxxxx:user/IAMUsername"
+}
+```
+
+6. use the hyrax-start script via the AWS cli to start your VM (where XXX is the name/initials you used for your VM)
+```console
+ ~ aws hyrax-start tt
+------------------------
+|    StartInstances    |
++----------+-----------+
+|  current |   prior   |
++----------+-----------+
+|  pending |  stopped  |
++----------+-----------+
+Punching hole in firewall for your IP: 129.170.117.158
+waiting for instance i-035687e0a28d829ea to start
+
+Instance available publicly at ip 54.89.26.20
+A record set for XXX.cloud.lnadac.org.
+
+
+ connect via ssh using:
+  ssh -i keyPairName.pem ec2-user@XXX.cloud.lnadac.org
+```
+
+7. all linux-vms created in AWS EC2 have a default user ec2-user upon creation.  The public portion of your SSH keypair is injected into this login.
+
+8. If you placed the private side of your key into .ssh directory already, you can just ssh without other arguments.  Otherwise, specify the private side of your key using the -i flag.
+
+```console
+ssh ec2-user@XXX.cloud.lnadac.org
+```
+
+8. turn it off when not in use to reduce billing:
+```console
+$ aws hyrax-stop XXX
+issuing stop request for i-035687e0a28d829ea
+removing firewall hole for current ip
+waiting for instance state to transition to stopped
 ```
