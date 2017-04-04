@@ -25,13 +25,13 @@ The scripts are generally only supported for running in the us-east-1 region.  T
  - the ssh keypair name you have created or uploaded to the AWS Console
  - a unique name (user initials?) to use for your system.  The final VM will get tagged with the name hyrax-server-XXX where XXX is the string you provide.  This provides a hook for scripts to locate resources connected to a particular developer node for startup, shutdown, termination, cleanup later on.
 
-6. Select Next.  you will have the chance to provide extra options on the Options panel.  Hit Next.
+6. Select Next.  You will be shown Options panel, but you need not select anything here.  Hit Next.
 
 7. On the Review Page, YOU MUST CHECK the box at the bottom to acknowledge that this is creating security roles and granting access to the VM to some resources inside your account.  
 
 8. Finally, hit create.
 
-9. you will be taken to the cloudformation console where you can watch the progress of the stack creation.  It usually takes approximately 5 minutes to complete.
+9. You will be taken to the cloudformation console where you can watch the progress of the stack creation.  It usually takes approximately 5-10 minutes to complete.
 
 
 You should now have a VM inside your account, that is running:
@@ -45,7 +45,7 @@ You should see this instance in the ec2-instances panel of the AWS Console.
 
 The Network Security Group attached to it will not allow ANY connections to the outside world by default.  If you are familiar with Security groups, you can open the machine to traffic using the functions of the EC2 console interface.  We also have a utility script from the command line that can find your VM, select its group, and add just your current IP to its list of granted ingress.
 
-Steps to get access to your new VM via the console and command line:
+## Steps to get access to your new VM via the console and command line:
 
 1. Install the AWS command line tools  [Install Instructions](http://docs.aws.amazon.com/cli/latest/userguide/installing.html)
 2. Obtain a AccessKey/SecretAccessKey pair that allows usage of AWS APIs. [Getting API keys](http://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey) 
@@ -58,7 +58,7 @@ $ mkdir -p ~/.aws/cli
 $ curl -o !/.aws/cli/alias https://raw.githubusercontent.com/greendavegreen/hyraxDevLauncher/master/alias
 ```
 
-5. do a quick check that you have the right identity, this should show the lnadac account and your IAM username
+5. Do a quick check that you have the right identity, this should show the lnadac account and your IAM username
 
 ```console
 $ aws whoami
@@ -69,7 +69,7 @@ $ aws whoami
 }
 ```
 
-6. use the hyrax-start script via the AWS cli to start your VM (where XXX is the name/initials you used for your VM)
+6. Use the hyrax-start script via the AWS cli to start your VM (where XXX is the name/initials you used for your VM)
 ```console
  ~ aws hyrax-start tt
 ------------------------
@@ -90,7 +90,7 @@ A record set for XXX.cloud.lnadac.org.
   ssh -i keyPairName.pem ec2-user@XXX.cloud.lnadac.org
 ```
 
-7. all linux-vms created in AWS EC2 have a default user ec2-user upon creation.  The public portion of your SSH keypair is injected into this login.
+7. All linux-vms created in AWS EC2 have a default user ec2-user upon creation.  The public portion of your SSH keypair is injected into this login.
 
 8. If you placed the private side of your key into .ssh directory already, you can just ssh without other arguments.  Otherwise, specify the private side of your key using the -i flag.
 
@@ -98,7 +98,7 @@ A record set for XXX.cloud.lnadac.org.
 ssh ec2-user@XXX.cloud.lnadac.org
 ```
 
-9. once on your machine, you will find:
+9. Once on your machine, you will find:
 - solr running as an init.d service answering port 8983
 - Fedora running inside Jetty service, answering port 8080
 - redis, installed as service and running on standard port
@@ -110,7 +110,8 @@ ssh ec2-user@XXX.cloud.lnadac.org
 - it should then be running on port 3000 in development mode
 
 It should be noted that REDIS, LibreOffice, and FITS might need to be introduced to the hyrax app.  Currently, they are invocable from the command line, but it is unclear if this is enough for Hyrax to engage with them.
-10. turn it off when not in use to reduce billing:
+
+10. Turn it off when not in use to reduce billing:
 ```console
 $ aws hyrax-stop XXX
 issuing stop request for i-035687e0a28d829ea

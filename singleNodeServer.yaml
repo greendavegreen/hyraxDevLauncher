@@ -89,8 +89,13 @@ Resources:
         Fn::Base64: !Sub |
            #!/bin/bash -xe
            yum-config-manager --enable epel
-           yum update -y
            /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
+           yum update -y
+           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource hyraxServer --region ${AWS::Region}
+    CreationPolicy:
+      ResourceSignal:
+        Count: "1"
+        Timeout: PT15M
     Metadata:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
