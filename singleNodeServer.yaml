@@ -334,11 +334,6 @@ Resources:
 
             19_set_start_priority:
               command: "sed -i 's/# chkconfig:.*/# chkconfig: 345 90 10/g' /etc/init.d/jetty"
-          services:
-            sysvinit:
-              jetty:
-                enabled: "true"
-                ensureRunning: "true"
 
 
 
