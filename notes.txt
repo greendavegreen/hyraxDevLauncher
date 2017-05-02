@@ -18,3 +18,24 @@ or
 
 
 =========================================================================================================
+
+
+
+
+client ID
+192850705756-mp19ls7lg0omov11c116brccfplr2sr5.apps.googleusercontent.com
+
+
+client secret
+zzyPfal9u6oMj1earCtt3Glv
+
+cognito identity pool
+us-east-1:59d3fc66-5927-4589-a02d-fed453dbe835
+
+
+
+
+creation policies only run once, thus a test that is returning a value from cfn-init isn't going to cause the deploy of stack to fail.
+
+cfn-hup - 5 minute polling by default.
+

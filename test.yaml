@@ -1,0 +1,89 @@
+Resources:
+  RootRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: "s3:*"
+                Resource: "*"
+
+  RootInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        -
+          Ref: "RootRole"
+
+  hyraxServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile: !Ref RootInstanceProfile
+      ImageId: ami-0b33d91d
+      InstanceType: m4.large
+      KeyName: hyrax-keypair
+      SubnetId: subnet-a0b8568c
+
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash -xe
+           yum update -y
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
+    Metadata:
+      AWS::CloudFormation::Authentication:
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref RootRole
+          buckets: hyrax-artifacts
+
+      AWS::CloudFormation::Init:
+        configSets:
+          hyrax_install:
+          - redis_install
+        redis_install:
+          files:
+            /etc/init.d/redis-server:
+              source: https://s3.amazonaws.com/hyrax-artifacts/redis-server
+              group: root
+              mode: '000755'
+              owner: root
+              authentication: S3AccessCreds
+          packages:
+            yum:
+              gcc: []
+              make: []
+          sources:
+            /tmp:
+              "https://s3.amazonaws.com/hyrax-artifacts/redis-3.2.8.tar.gz"
+          commands:
+            01_clean:
+              command: make distclean
+              cwd: '/tmp/redis-3.2.8'
+            02_make:
+              command: make
+              cwd: '/tmp/redis-3.2.8'
+            03_install_binaries:
+              command: cp src/redis-server src/redis-cli /usr/local/bin
+              cwd: '/tmp/redis-3.2.8'
+            04_make_directories:
+              command: mkdir -p /etc/redis /var/lib/redis /var/redis/6379
+            05_install_conf:
+              command: cp redis.conf /etc/redis/6379.conf
+              cwd: '/tmp/redis-3.2.8'

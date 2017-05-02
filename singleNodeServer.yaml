@@ -89,13 +89,8 @@ Resources:
         Fn::Base64: !Sub |
            #!/bin/bash -xe
            yum-config-manager --enable epel
-           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
            yum update -y
-           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource hyraxServer --region ${AWS::Region}
-    CreationPolicy:
-      ResourceSignal:
-        Count: "1"
-        Timeout: PT30M
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource hyraxServer --configsets hyrax_install --region ${AWS::Region}
     Metadata:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
@@ -334,6 +329,11 @@ Resources:
 
             19_set_start_priority:
               command: "sed -i 's/# chkconfig:.*/# chkconfig: 345 90 10/g' /etc/init.d/jetty"
+          services:
+            sysvinit:
+              jetty:
+                enabled: "true"
+                ensureRunning: "true"
 
 
 
