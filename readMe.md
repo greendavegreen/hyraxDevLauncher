@@ -11,22 +11,22 @@ The script are generally only supported for running in the us-east-1 region.  Th
 1. You will need to create an EC2 key-pair for SSH communications with your developer box.  Instructions for creating a keypair and downloading your private portion of the key can be found at [Create EC2 key-pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
 
 
-3. Using the dev node creation button above, request a new server.  If you are not logged into the AWS Console you will be asked to do so.  
+2. Using the dev node creation button above, request a new server.  If you are not logged into the AWS Console you will be asked to do so.  
 
-4. You will be taken to the stack-launch page with the s3-location of the template filled in.  Select Next.
+3. You will be taken to the stack-launch page with the s3-location of the template filled in.  Select Next.
 
-5. You will be asked to provide options/aguments/names:
+4. You will be asked to provide options/aguments/names:
  - a (unique) name this stack of resources you are creating (remember this to be able to clean up/terminate the stack later)
  - the ssh keypair name you have created or uploaded to the AWS Console
  - a unique name (user initials?) to use for your system.  The final VM will get tagged with the name hyrax-server-XXX where XXX is the string you provide.  This provides a hook for scripts to locate resources connected to a particular developer node for startup, shutdown, termination, cleanup later on.
  - With the above 3 items set, select next
  
-6. You will be shown Options panel, accept defaults.  Sit Next.
+5. You will be shown Options panel, accept defaults.  Hit Next.
 
-7. On the Review Page, YOU MUST CHECK the box at the bottom to acknowledge that this is creating security roles and granting access to the VM to some resources inside your account.  Select Next.
+6. On the Review Page, YOU MUST CHECK the box at the bottom to acknowledge that this is creating security roles and granting access to the VM to some resources inside your account.  Select Create.
 
 
-9. You will be taken to the cloudformation console where you can watch the progress of the stack creation.  It usually takes approximately 5-10 minutes to complete.
+7. You will be taken to the cloudformation console where you can watch the progress of the stack creation.  It usually takes approximately 5-10 minutes to complete.
 
 You should now have a VM inside your account, that is running:
   - solr
