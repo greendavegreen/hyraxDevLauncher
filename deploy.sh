@@ -3,5 +3,5 @@ aws s3 sync . s3://hyrax-cf --profile dac --exclude ".git/*" --exclude ".idea/*"
 
 aws cloudformation deploy --profile dac \
                           --template-file stack.yaml \
-                          --stack-name stack \
+                          --stack-name sourcestack \
                           --capabilities CAPABILITY_IAM

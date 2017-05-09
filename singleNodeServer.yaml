@@ -223,18 +223,51 @@ Resources:
                 enabled: "true"
                 ensureRunning: "true"
 
-        redis_install:   # standard epel redis installed with mod to service start order
-          packages:
+        redis_install:    # build it from source
+          files:                                          # config files
+            /etc/init.d/redis-server:
+              source: https://s3.amazonaws.com/hyrax-artifacts/redis-server
+              group: root
+              mode: '000755'
+              owner: root
+              authentication: S3AccessCreds
+            /etc/redis/6379.conf:
+              source: https://s3.amazonaws.com/hyrax-artifacts/6379.conf
+              group: root
+              mode: '000644'
+              owner: root
+              authentication: S3AccessCreds
+            /etc/systctl.conf:
+              source: https://s3.amazonaws.com/hyrax-artifacts/systctl.conf
+              group: root
+              mode: '000644'
+              owner: root
+              authentication: S3AccessCreds
+          packages:                                       # required utils for running the build
             yum:
-              redis.x86_64: []
+              gcc: []
+              make: []
+          sources:                                        # unpack, build, and move binaries into place
+            /tmp:
+              "https://s3.amazonaws.com/hyrax-artifacts/redis-3.2.8.tar.gz"
           commands:
-            01_set_start_priority:
-              command: "sed -i 's/# chkconfig:.*/# chkconfig: 345 95 05/g' /etc/init.d/redis"
-          services:
-            sysvinit:
-              redis:
-                enabled: "true"
-                ensureRunning: "true"
+            01_clean:
+              command: make distclean
+              cwd: '/tmp/redis-3.2.8'
+            02_make:
+              command: make
+              cwd: '/tmp/redis-3.2.8'
+            03_install_binaries:
+              command: cp src/redis-server src/redis-cli /usr/local/bin
+              cwd: '/tmp/redis-3.2.8'
+            04_make_directories:
+              command: mkdir -p /var/lib/redis /var/redis/6379
+            05_install_service:
+              command: chkconfig --add redis-server
+            06_set_start_levels:
+              command: chkconfig --level 345 redis-server on
+            07_start:
+              command: service redis-server start
 
         fits_install:
           sources:
