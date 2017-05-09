@@ -25,7 +25,6 @@ The script are generally only supported for running in the us-east-1 region.  Th
 
 6. On the Review Page, YOU MUST CHECK the box at the bottom to acknowledge that this is creating security roles and granting access to the VM to some resources inside your account.  Select Create.
 
-
 7. You will be taken to the cloudformation console where you can watch the progress of the stack creation.  It usually takes approximately 5-10 minutes to complete.
 
 You should now have a VM inside your account, that is running:
