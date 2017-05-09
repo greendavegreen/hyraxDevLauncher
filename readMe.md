@@ -1,19 +1,15 @@
 # Hyrax Developer Templates
 
-
-[![Launch VPC](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=hyraxVPCStack&templateURL=https://s3.amazonaws.com/hyrax-cf/vpc.yaml)  Launch VPC_Setup stack
-
 [![Launch VM](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=hyraxUserXXStack&templateURL=https://s3.amazonaws.com/hyrax-cf/stack.yaml) Create a hyrax Dev Node inside a VPC Stack
 
-These AWS CloudFormation templates create a development VM for hyrax which runs on a single EC2 instance.
+This AWS CloudFormation templates create a development VM for hyrax which runs on a single EC2 instance.  It requires that you have previously run the shared infrasctuture network creation script in your account.  You can do this by first following the instructions at the end of this page and using the button to launch said script.
  
-## Creating a dev instance using the AWS Console & the buttons above
+## Creating a hyrax dev instance using the launch VM button
 
-The scripts are generally only supported for running in the us-east-1 region.  The buttons above take care of launching there.
+The script are generally only supported for running in the us-east-1 region.  The buttons above take care of launching there.
 
 1. You will need to create an EC2 key-pair for SSH communications with your developer box.  Instructions for creating a keypair and downloading your private portion of the key can be found at [Create EC2 key-pair](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
 
-2. Nothing is required to create a new VPC setup.  This will establish a basic set of subnets and routings rules inside of which a hyrax node can run.  If you already have this stack deployed, just note the stack name for use in the hyrax creation step.
 
 3. Using the dev node creation button above, request a new server.  If you are not logged into the AWS Console you will be asked to do so.  
 
@@ -21,18 +17,16 @@ The scripts are generally only supported for running in the us-east-1 region.  T
 
 5. You will be asked to provide options/aguments/names:
  - a (unique) name this stack of resources you are creating (remember this to be able to clean up/terminate the stack later)
- - a name of the VPC stack (from above) to launch inside of
  - the ssh keypair name you have created or uploaded to the AWS Console
  - a unique name (user initials?) to use for your system.  The final VM will get tagged with the name hyrax-server-XXX where XXX is the string you provide.  This provides a hook for scripts to locate resources connected to a particular developer node for startup, shutdown, termination, cleanup later on.
+ - With the above 3 items set, select next
+ 
+6. You will be shown Options panel, accept defaults.  Sit Next.
 
-6. Select Next.  You will be shown Options panel, but you need not select anything here.  Hit Next.
+7. On the Review Page, YOU MUST CHECK the box at the bottom to acknowledge that this is creating security roles and granting access to the VM to some resources inside your account.  Select Next.
 
-7. On the Review Page, YOU MUST CHECK the box at the bottom to acknowledge that this is creating security roles and granting access to the VM to some resources inside your account.  
-
-8. Finally, hit create.
 
 9. You will be taken to the cloudformation console where you can watch the progress of the stack creation.  It usually takes approximately 5-10 minutes to complete.
-
 
 You should now have a VM inside your account, that is running:
   - solr
@@ -120,3 +114,11 @@ waiting for instance state to transition to stopped
 ```
 
 11. Terminate it when you are really done with it.  This can be done in the cloudformation section of the AWS Console by requesting a delete of the StackName that you generated to start this in step 5 above.
+
+
+
+# Shared network infrastructure stack
+
+1. You will be asked to provide a stack name for this shared infrastructure.  The name is not important and up to you to settle upon.  Beyond that, all of the defaults should be accepted.  You will then have a network that is suitable for running hyrax servers and pulicly exported values will be available to the hyrax server creation script(s) you will run later.
+
+[![Launch VPC](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=hyraxVPCStack&templateURL=https://s3.amazonaws.com/hyrax-cf/vpc.yaml)  Launch VPC_Setup stack

@@ -166,19 +166,19 @@ Outputs:
     Description: The ID of the VPC
     Value: !Ref hyraxVPC
     Export:
-      Name: !Sub "${AWS::StackName}-VPCId"
+      Name: "SharedInf-VPCId"
   HyraxSubnet:
     Description: public subnets used by Hyrax
     Value: !Ref pubSubA
     Export:
-      Name: !Sub "${AWS::StackName}-HyraxSubnet"
+      Name: "SharedInf-HyraxSubnet"
   StackPublicNets:
     Description: public subnets available
     Value: !Join [',', [ !Ref pubSubA, !Ref pubSubB, !Ref pubSubC ]]
     Export:
-      Name: !Sub "${AWS::StackName}-PubNets"
+      Name: "SharedInf-PubNets"
   StackPrivateNets:
     Description: private subnets available
     Value: !Join [',', [ !Ref privSubA, !Ref privSubB, !Ref privSubC ]]
     Export:
-      Name: !Sub "${AWS::StackName}-PrivNets"
+      Name: "SharedInf-PrivNets"

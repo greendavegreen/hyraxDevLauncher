@@ -86,7 +86,7 @@ Resources:
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
       InstanceType: m4.large
       SubnetId: !Select [ 0, !Ref PublicSubnets ]
-      BlockDeviceMappings:
+      BlockDeviceMappings:                                  # devices declared to be used for solr and fedora data
       - DeviceName: /dev/sdf
         Ebs: {VolumeSize: 4, VolumeType: gp2, DeleteOnTermination: true}
       - DeviceName: /dev/sdg
@@ -117,7 +117,7 @@ Resources:
           - solr_install
           - redis_install
           - fits_install
-          - fedora_base
+          - fedora_base             # last 4 are fedora related
           - fedora_preflight
           - jetty_preflight
           - jetty_install

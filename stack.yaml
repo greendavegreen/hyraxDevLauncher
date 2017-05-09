@@ -1,10 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Script to produce a dev hyrax server for a given user.'
 Parameters:
-  NetworkStackName:
-    Type: String
-    Description: The stack that created our VPC
-    Default: test-net
   KeypairName:
     Type: AWS::EC2::KeyPair::KeyName
   HyraxUserInitials:
@@ -14,21 +10,15 @@ Parameters:
     MinLength: 1
     MaxLength: 16
     AllowedPattern: "[a-z][a-z]*"
-Mappings:
-  RegionMap:
-    us-east-1:
-      AMI: ami-0b33d91d
 Resources:
   EC2Stack:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
         PublicSubnets:
-          Fn::ImportValue:
-            !Sub "${NetworkStackName}-PubNets"
+          !ImportValue "SharedInf-PubNets"
         VpcID:
-          Fn::ImportValue:
-            !Sub "${NetworkStackName}-VPCId"
+          !ImportValue "SharedInf-VPCId"
         UserInitials:
           !Ref HyraxUserInitials
         KeypairName:
