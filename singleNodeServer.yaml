@@ -130,7 +130,7 @@ Resources:
             01_add_us_to_group:
               command: usermod -a -G dac ec2-user
 
-        rails_install:
+        rails_install:      # Rails and support application install (Imagemagick & libreoffice)
           packages:
             yum:
               ruby23: []
