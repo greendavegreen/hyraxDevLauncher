@@ -1,3 +1,12 @@
+#
+#  cloudformation script that sets up a hyrax server following patterns listed in:
+#
+# https://github.com/projecthydra-labs/hyrax#getting-started
+
+# building this also relied upon the rough outline of a redis build from source on ec2 located at:
+#
+#   https://medium.com/@andrewcbass/install-redis-v3-2-on-aws-ec2-instance-93259d40a3ce
+#
 AWSTemplateFormatVersion: '2010-09-09'
 
 Parameters:
@@ -35,7 +44,7 @@ Resources:
         - {Key: Name, Value: !Sub "hyrax-server-sg-${UserInitials}"}
         - {Key: project, Value: hyrax}
 
-  RootRole:
+  RootRole:                         # define a role, which can be taken by an ec2 instance that allows FULL S3
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -71,7 +80,7 @@ Resources:
   hyraxServer:
     Type: "AWS::EC2::Instance"
     Properties:
-      IamInstanceProfile: !Ref RootInstanceProfile
+      IamInstanceProfile: !Ref RootInstanceProfile         # give the power to assume S3 rights to this machine
       SecurityGroupIds: [!Ref hyraxServerSG]
       KeyName: !Ref KeypairName
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]

@@ -1,5 +1,12 @@
+#
+#  cloudformation script that follows the rough outline of a redis build from source on ec2 located at:
+#
+#   https://medium.com/@andrewcbass/install-redis-v3-2-on-aws-ec2-instance-93259d40a3ce
+#
+#
+
 Resources:
-  RootRole:
+  RootRole:                         # define a role, which can be taken by an ec2 instance that allows FULL S3 access
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -35,7 +42,7 @@ Resources:
   hyraxServer:
     Type: AWS::EC2::Instance
     Properties:
-      IamInstanceProfile: !Ref RootInstanceProfile
+      IamInstanceProfile: !Ref RootInstanceProfile        # give the power to assume S3 rights to this machine
       ImageId: ami-0b33d91d
       InstanceType: m4.large
       KeyName: hyrax-keypair
@@ -57,19 +64,32 @@ Resources:
         configSets:
           hyrax_install:
           - redis_install
+
         redis_install:
-          files:
+          files:                                          # config files
             /etc/init.d/redis-server:
               source: https://s3.amazonaws.com/hyrax-artifacts/redis-server
               group: root
               mode: '000755'
               owner: root
               authentication: S3AccessCreds
-          packages:
+            /etc/redis/6379.conf:
+              source: https://s3.amazonaws.com/hyrax-artifacts/6379.conf
+              group: root
+              mode: '000644'
+              owner: root
+              authentication: S3AccessCreds
+            /etc/systctl.conf:
+              source: https://s3.amazonaws.com/hyrax-artifacts/systctl.conf
+              group: root
+              mode: '000644'
+              owner: root
+              authentication: S3AccessCreds
+          packages:                                       # required utils for running the build
             yum:
               gcc: []
               make: []
-          sources:
+          sources:                                        # unpack, build, and move binaries into place
             /tmp:
               "https://s3.amazonaws.com/hyrax-artifacts/redis-3.2.8.tar.gz"
           commands:
@@ -83,7 +103,10 @@ Resources:
               command: cp src/redis-server src/redis-cli /usr/local/bin
               cwd: '/tmp/redis-3.2.8'
             04_make_directories:
-              command: mkdir -p /etc/redis /var/lib/redis /var/redis/6379
-            05_install_conf:
-              command: cp redis.conf /etc/redis/6379.conf
-              cwd: '/tmp/redis-3.2.8'
+              command: mkdir -p /var/lib/redis /var/redis/6379
+            05_install_service:
+              command: chkconfig --add redis-server
+            06_set_start_levels:
+              command: chkconfig --level 345 redis-server on
+            07_start:
+              command: service redis-server start
