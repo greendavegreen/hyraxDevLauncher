@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Script to produce a dev hyrax server for a given user.'
+Description: 'Creates Hyrax dev vm. Delete me to get rid of VM'
 Parameters:
   KeypairName:
     Type: AWS::EC2::KeyPair::KeyName

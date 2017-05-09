@@ -8,6 +8,7 @@
 #   https://medium.com/@andrewcbass/install-redis-v3-2-on-aws-ec2-instance-93259d40a3ce
 #
 AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Sub-script to create/config hyrax vm.  do not delete this directly, it is cleaned up by parent.'
 
 Parameters:
   UserInitials:
