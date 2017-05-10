@@ -23,7 +23,7 @@ Parameters:
 Mappings:
   RegionMap:
     us-east-1:
-      AMI: ami-0b33d91d
+      AMI: ami-0b33d91d       # this will change
 
 Resources:
   hyraxSolrSG:
@@ -35,7 +35,7 @@ Resources:
         - {Key: Name, Value: !Sub "hyrax-solr-sg-${userInitials}"}
         - {Key: project, Value: hyrax}
 
-  RootRole:
+  RootRole:       # role that grants full access to anything in ANY of our S3 buckets
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -71,7 +71,7 @@ Resources:
   solrServer:
     Type: "AWS::EC2::Instance"
     Properties:
-      IamInstanceProfile: !Ref RootInstanceProfile
+      IamInstanceProfile: !Ref RootInstanceProfile            # attach that role
       SecurityGroupIds: [!Ref hyraxSolrSG]
       KeyName: !Ref keypairName
       ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI]
